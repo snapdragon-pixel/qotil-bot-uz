@@ -281,10 +281,23 @@ def premium_info(message):
 if __name__ == "__main__":
     keep_alive()
     print("Bot ishga tushdi...")
-    while True:
-        try:
-            bot.polling(none_stop=True, interval=0, timeout=20)
-        except Exception as e:
-            print(f"Xatolik yuz berdi: {e}")
-            time.sleep(5)
+    
+    def run_bot():
+        while True:
+            try:
+                print("Bot pollingni boshlamoqda...")
+                # Webhook'ni tozalash va pollingni boshlash
+                bot.remove_webhook()
+                bot.infinity_polling(timeout=10, long_polling_timeout=5)
+            except Exception as e:
+                print(f"Xatolik yuz berdi: {e}")
+                if "409" in str(e):
+                    print("Ziddiyat aniqlandi. Boshqa jarayon ishlayotgan bo'lishi mumkin. 20 soniya kutilmoqda...")
+                    time.sleep(20)
+                else:
+                    print("Qayta ulanishga harakat qilinmoqda (5s)...")
+                    time.sleep(5)
+
+    # Botni alohida thread'da emas, asosiy oqimda ishlatamiz
+    run_bot()
 
