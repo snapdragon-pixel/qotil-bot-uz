@@ -1,13 +1,24 @@
 import sqlite3
+import threading
 
 class Database:
     def __init__(self, db_file="qotil.db"):
-        self.conn = sqlite3.connect(db_file, check_same_thread=False)
-        self.cursor = self.conn.cursor()
+        self.db_file = db_file
+        self.local = threading.local()
         self.create_tables()
 
+    def get_conn(self):
+        if not hasattr(self.local, "conn"):
+            self.local.conn = sqlite3.connect(self.db_file, check_same_thread=False)
+        return self.local.conn
+
+    def get_cursor(self):
+        return self.get_conn().cursor()
+
     def create_tables(self):
-        self.cursor.execute('''
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
                 username TEXT,
@@ -18,25 +29,33 @@ class Database:
                 wins INTEGER DEFAULT 0
             )
         ''')
-        self.conn.commit()
+        conn.commit()
+        conn.close()
 
     def add_user(self, user_id, username, name):
-        self.cursor.execute('INSERT OR IGNORE INTO users (user_id, username, name) VALUES (?, ?, ?)', (user_id, username, name))
-        self.conn.commit()
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute('INSERT OR IGNORE INTO users (user_id, username, name) VALUES (?, ?, ?)', (user_id, username, name))
+        conn.commit()
 
     def get_user(self, user_id):
-        self.cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
-        return self.cursor.fetchone()
+        cursor = self.get_cursor()
+        cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+        return cursor.fetchone()
 
     def update_stats(self, user_id, win=False):
+        conn = self.get_conn()
+        cursor = conn.cursor()
         if win:
-            self.cursor.execute('UPDATE users SET games_played = games_played + 1, wins = wins + 1 WHERE user_id = ?', (user_id,))
+            cursor.execute('UPDATE users SET games_played = games_played + 1, wins = wins + 1 WHERE user_id = ?', (user_id,))
         else:
-            self.cursor.execute('UPDATE users SET games_played = games_played + 1 WHERE user_id = ?', (user_id,))
-        self.conn.commit()
+            cursor.execute('UPDATE users SET games_played = games_played + 1 WHERE user_id = ?', (user_id,))
+        conn.commit()
 
     def set_premium(self, user_id, status=True):
-        self.cursor.execute('UPDATE users SET is_premium = ? WHERE user_id = ?', (status, user_id))
-        self.conn.commit()
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET is_premium = ? WHERE user_id = ?', (status, user_id))
+        conn.commit()
 
 db = Database()
